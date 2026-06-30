@@ -1,0 +1,30 @@
+apiVersion: chaos.xops.io/v1alpha1
+kind: ChaosExperiment
+metadata:
+  name: network-latency-test
+spec:
+  description: "Inject network latency to test timeout handling and circuit breakers"
+  experiments:
+    - name: latency-frontend-to-backend
+      type: network-latency
+      namespace: default
+      label_selector: "app=frontend"
+      interface: eth0
+      latency_ms: 300
+      jitter_ms: 100
+      duration_seconds: 120
+      wait_seconds: 30
+    - name: latency-backend-to-database
+      type: network-latency
+      namespace: default
+      label_selector: "app=backend"
+      interface: eth0
+      latency_ms: 500
+      jitter_ms: 200
+      duration_seconds: 90
+      wait_seconds: 30
+  steady_state:
+    check: "curl -s -o /dev/null -w '%{http_code}' http://frontend.default.svc/healthz"
+    expected: "200"
+  rollback:
+    command: "kubectl delete pods -l app=chaos-latency-injector"

@@ -1,0 +1,28 @@
+apiVersion: chaos.xops.io/v1alpha1
+kind: ChaosExperiment
+metadata:
+  name: cpu-stress-test
+spec:
+  description: "Stress CPU on backend nodes to test autoscaling and degradation"
+  experiments:
+    - name: stress-backend-cpu
+      type: cpu-stress
+      namespace: default
+      label_selector: "app=backend"
+      cpu_workers: 4
+      cpu_percent: 90
+      duration_seconds: 120
+      wait_seconds: 30
+    - name: stress-worker-cpu
+      type: cpu-stress
+      namespace: default
+      label_selector: "app=worker"
+      cpu_workers: 2
+      cpu_percent: 70
+      duration_seconds: 90
+      wait_seconds: 30
+  steady_state:
+    check: "kubectl top pods -l app=backend --no-headers | awk '{print $2}'"
+    expected: "<500m"
+  rollback:
+    command: "kubectl delete pods -l app=chaos-cpu-stress"

@@ -1,0 +1,22 @@
+apiVersion: chaos.xops.io/v1alpha1
+kind: ChaosExperiment
+metadata:
+  name: kill-frontend-pods
+spec:
+  description: "Kill frontend pods to test self-healing"
+  experiments:
+    - name: kill-frontend
+      type: pod-kill
+      namespace: default
+      label_selector: "app=frontend"
+      kill_count: 2
+      wait_seconds: 30
+    - name: kill-backend
+      type: pod-kill
+      namespace: default
+      label_selector: "app=backend"
+      kill_count: 1
+      wait_seconds: 60
+  steady_state:
+    check: "kubectl get pods -l app=frontend --field-selector=status.phase=Running | wc -l"
+    expected: "3"

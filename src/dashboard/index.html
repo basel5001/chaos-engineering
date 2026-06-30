@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chaos Engineering Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg-primary: #0d1117;
+      --bg-secondary: #161b22;
+      --bg-tertiary: #21262d;
+      --border: #30363d;
+      --text-primary: #e6edf3;
+      --text-secondary: #8b949e;
+      --accent-green: #3fb950;
+      --accent-red: #f85149;
+      --accent-yellow: #d29922;
+      --accent-blue: #58a6ff;
+      --accent-purple: #bc8cff;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.6;
+    }
+    .header {
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .header h1 { font-size: 20px; font-weight: 600; }
+    .header .status {
+      display: flex;
+      gap: 16px;
+      font-size: 14px;
+    }
+    .header .status span { display: flex; align-items: center; gap: 4px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+    .dot-green { background: var(--accent-green); }
+    .dot-red { background: var(--accent-red); }
+    .dot-yellow { background: var(--accent-yellow); }
+    .container { max-width: 1400px; margin: 0 auto; padding: 24px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+    }
+    .card h3 { font-size: 14px; color: var(--text-secondary); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .stat { font-size: 36px; font-weight: 700; }
+    .stat-green { color: var(--accent-green); }
+    .stat-red { color: var(--accent-red); }
+    .stat-blue { color: var(--accent-blue); }
+    .chart-container { position: relative; height: 250px; }
+    .timeline { margin-bottom: 24px; }
+    .timeline h2 { font-size: 16px; margin-bottom: 12px; padding: 0 4px; }
+    .timeline-item {
+      display: flex;
+      align-items: flex-start;
+      padding: 12px 16px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+    .timeline-item:hover { border-color: var(--accent-blue); }
+    .timeline-item .icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 12px;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+    .icon-pass { background: rgba(63,185,80,0.15); color: var(--accent-green); }
+    .icon-fail { background: rgba(248,81,73,0.15); color: var(--accent-red); }
+    .icon-skip { background: rgba(210,153,34,0.15); color: var(--accent-yellow); }
+    .timeline-item .info { flex: 1; }
+    .timeline-item .info .name { font-weight: 600; font-size: 14px; }
+    .timeline-item .info .meta { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+    .timeline-item .duration { font-size: 13px; color: var(--text-secondary); text-align: right; white-space: nowrap; }
+    .details-panel {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+      margin-top: 4px;
+      margin-bottom: 8px;
+      display: none;
+    }
+    .details-panel.active { display: block; }
+    .details-panel pre {
+      background: var(--bg-tertiary);
+      padding: 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .ai-panel {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+    }
+    .ai-panel h2 { font-size: 16px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    .ai-panel .badge {
+      font-size: 11px;
+      background: var(--accent-purple);
+      color: #fff;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-weight: 600;
+    }
+    .ai-content {
+      font-size: 14px;
+      line-height: 1.7;
+      color: var(--text-secondary);
+    }
+    .ai-content h3 { color: var(--text-primary); margin-top: 16px; font-size: 14px; }
+    .ai-content ul { padding-left: 20px; margin: 8px 0; }
+    .ai-content li { margin-bottom: 4px; }
+    .load-section { text-align: center; padding: 40px; }
+    .load-section input[type="file"] { display: none; }
+    .btn {
+      background: var(--accent-blue);
+      color: #fff;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .btn:hover { opacity: 0.9; }
+    .two-col { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
+    @media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Chaos Engineering Dashboard</h1>
+    <div class="status">
+      <span><span class="dot dot-green"></span> <span id="passCount">0</span> Passed</span>
+      <span><span class="dot dot-red"></span> <span id="failCount">0</span> Failed</span>
+      <span><span class="dot dot-yellow"></span> <span id="skipCount">0</span> Skipped</span>
+    </div>
+  </div>
+
+  <div class="container">
+    <!-- Load data -->
+    <div class="load-section" id="loadSection">
+      <p style="color: var(--text-secondary); margin-bottom: 16px;">Load experiment results JSON to view the dashboard</p>
+      <label class="btn" for="fileInput">Load Results JSON</label>
+      <input type="file" id="fileInput" accept=".json">
+      <button class="btn" style="margin-left: 8px;" onclick="loadSample()">Load Sample Data</button>
+    </div>
+
+    <!-- Dashboard content (hidden until data loaded) -->
+    <div id="dashboard" style="display:none;">
+      <div class="grid">
+        <div class="card">
+          <h3>Total Experiments</h3>
+          <div class="stat stat-blue" id="totalStat">0</div>
+        </div>
+        <div class="card">
+          <h3>Success Rate</h3>
+          <div class="stat stat-green" id="successRate">0%</div>
+        </div>
+        <div class="card">
+          <h3>Total Duration</h3>
+          <div class="stat" id="totalDuration">0s</div>
+        </div>
+        <div class="card">
+          <h3>Experiment Types</h3>
+          <div class="chart-container"><canvas id="typeChart"></canvas></div>
+        </div>
+        <div class="card" style="grid-column: span 2;">
+          <h3>Pass / Fail Timeline</h3>
+          <div class="chart-container"><canvas id="timelineChart"></canvas></div>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div>
+          <div class="timeline">
+            <h2>Experiment Timeline</h2>
+            <div id="timelineList"></div>
+          </div>
+        </div>
+        <div>
+          <div class="ai-panel">
+            <h2>AI Analysis <span class="badge">Bedrock</span></h2>
+            <div class="ai-content" id="aiContent">
+              <p>No AI analysis available. Run experiments with AI analysis enabled.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let chartType = null;
+    let chartTimeline = null;
+
+    function loadSample() {
+      const sample = [
+        {
+          name: "kill-frontend-pods",
+          type: "pod-kill",
+          namespace: "default",
+          status: "completed",
+          start_time: "2025-01-15T10:00:00",
+          end_time: "2025-01-15T10:00:05",
+          duration_seconds: 5.2,
+          details: { killed: [{ name: "frontend-abc12", dry_run: false }] },
+          ai_analysis: "### Findings\n\n- Frontend pods recovered within 8 seconds via ReplicaSet.\n- No user-facing errors detected during pod restart.\n\n### Weaknesses\n\n- Single point of failure in session storage — pods lost in-memory sessions on kill.\n\n### Recommendations\n\n- Migrate session storage to Redis or an external store.\n- Add pod disruption budgets (PDB) to limit concurrent pod kills."
+        },
+        {
+          name: "inject-network-latency",
+          type: "network-latency",
+          namespace: "default",
+          status: "completed",
+          start_time: "2025-01-15T10:01:00",
+          end_time: "2025-01-15T10:02:00",
+          duration_seconds: 60.1,
+          details: { latency_ms: 200, jitter_ms: 50, node: "node-1" },
+          ai_analysis: ""
+        },
+        {
+          name: "cpu-stress-backend",
+          type: "cpu-stress",
+          namespace: "default",
+          status: "failed",
+          start_time: "2025-01-15T10:03:00",
+          end_time: "2025-01-15T10:04:00",
+          duration_seconds: 62.3,
+          details: { error: "Stress pod OOMKilled", cpu_percent: 90 },
+          ai_analysis: ""
+        },
+        {
+          name: "dns-failure-external",
+          type: "dns-failure",
+          namespace: "kube-system",
+          status: "completed",
+          start_time: "2025-01-15T10:05:00",
+          end_time: "2025-01-15T10:06:00",
+          duration_seconds: 60.0,
+          details: { domains: ["api.external.com"], duration_seconds: 60 },
+          ai_analysis: ""
+        }
+      ];
+      renderDashboard(sample);
+    }
+
+    document.getElementById('fileInput').addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(ev) {
+        try {
+          const data = JSON.parse(ev.target.result);
+          const results = Array.isArray(data) ? data : (data.results || [data]);
+          renderDashboard(results);
+        } catch (err) {
+          alert('Invalid JSON file: ' + err.message);
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    function renderDashboard(results) {
+      document.getElementById('loadSection').style.display = 'none';
+      document.getElementById('dashboard').style.display = 'block';
+
+      const passed = results.filter(r => r.status === 'completed').length;
+      const failed = results.filter(r => r.status === 'failed').length;
+      const skipped = results.filter(r => r.status === 'skipped').length;
+      const total = results.length;
+
+      document.getElementById('passCount').textContent = passed;
+      document.getElementById('failCount').textContent = failed;
+      document.getElementById('skipCount').textContent = skipped;
+      document.getElementById('totalStat').textContent = total;
+      document.getElementById('successRate').textContent = total ? Math.round((passed / total) * 100) + '%' : '0%';
+      document.getElementById('totalDuration').textContent = results.reduce((s, r) => s + (r.duration_seconds || 0), 0).toFixed(1) + 's';
+
+      // Type chart
+      const types = {};
+      results.forEach(r => { types[r.type] = (types[r.type] || 0) + 1; });
+      if (chartType) chartType.destroy();
+      chartType = new Chart(document.getElementById('typeChart'), {
+        type: 'doughnut',
+        data: {
+          labels: Object.keys(types),
+          datasets: [{
+            data: Object.values(types),
+            backgroundColor: ['#58a6ff', '#3fb950', '#f85149', '#d29922', '#bc8cff'],
+            borderColor: '#21262d',
+            borderWidth: 2,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'bottom', labels: { color: '#8b949e', font: { size: 12 } } } }
+        }
+      });
+
+      // Timeline chart
+      if (chartTimeline) chartTimeline.destroy();
+      chartTimeline = new Chart(document.getElementById('timelineChart'), {
+        type: 'bar',
+        data: {
+          labels: results.map(r => r.name),
+          datasets: [{
+            label: 'Duration (s)',
+            data: results.map(r => r.duration_seconds),
+            backgroundColor: results.map(r => r.status === 'completed' ? 'rgba(63,185,80,0.6)' : r.status === 'failed' ? 'rgba(248,81,73,0.6)' : 'rgba(210,153,34,0.6)'),
+            borderColor: results.map(r => r.status === 'completed' ? '#3fb950' : r.status === 'failed' ? '#f85149' : '#d29922'),
+            borderWidth: 1,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: '#8b949e' }, grid: { color: '#21262d' } },
+            y: { ticks: { color: '#8b949e' }, grid: { color: '#21262d' }, title: { display: true, text: 'Seconds', color: '#8b949e' } }
+          }
+        }
+      });
+
+      // Timeline list
+      const list = document.getElementById('timelineList');
+      list.innerHTML = '';
+      results.forEach((r, i) => {
+        const statusClass = r.status === 'completed' ? 'icon-pass' : r.status === 'failed' ? 'icon-fail' : 'icon-skip';
+        const statusIcon = r.status === 'completed' ? 'OK' : r.status === 'failed' ? 'X' : '--';
+        const item = document.createElement('div');
+        item.innerHTML = `
+          <div class="timeline-item" onclick="toggleDetails(${i})">
+            <div class="icon ${statusClass}">${statusIcon}</div>
+            <div class="info">
+              <div class="name">${r.name}</div>
+              <div class="meta">${r.type} | ${r.namespace} | ${r.start_time || ''}</div>
+            </div>
+            <div class="duration">${(r.duration_seconds || 0).toFixed(1)}s</div>
+          </div>
+          <div class="details-panel" id="details-${i}">
+            <h4 style="margin-bottom:8px;">Experiment Details</h4>
+            <pre>${JSON.stringify(r.details || {}, null, 2)}</pre>
+            ${r.ai_analysis ? '<h4 style="margin:12px 0 8px;">AI Analysis</h4><div class="ai-content">' + simpleMarkdown(r.ai_analysis) + '</div>' : ''}
+          </div>
+        `;
+        list.appendChild(item);
+      });
+
+      // AI panel — aggregate analysis from first result that has one
+      const withAnalysis = results.filter(r => r.ai_analysis);
+      const aiPanel = document.getElementById('aiContent');
+      if (withAnalysis.length > 0) {
+        aiPanel.innerHTML = withAnalysis.map(r => '<h3>' + r.name + '</h3>' + simpleMarkdown(r.ai_analysis)).join('<hr style="border-color:var(--border);margin:16px 0;">');
+      }
+    }
+
+    function toggleDetails(idx) {
+      const el = document.getElementById('details-' + idx);
+      el.classList.toggle('active');
+    }
+
+    function simpleMarkdown(text) {
+      if (!text) return '';
+      return text
+        .replace(/### (.+)/g, '<h4>$1</h4>')
+        .replace(/## (.+)/g, '<h3>$1</h3>')
+        .replace(/# (.+)/g, '<h2>$1</h2>')
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\n- /g, '\n<li>')
+        .replace(/<li>(.+?)(?=\n|$)/g, '<li>$1</li>')
+        .replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>')
+        .replace(/\n{2,}/g, '<br><br>')
+        .replace(/\n/g, '<br>');
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+# Default owners
+* @xops/platform-team
+
+# Chaos experiments
+/src/experiments/ @xops/sre-team @xops/platform-team
+
+# AI integration
+/src/ai/ @xops/ai-team @xops/platform-team
+
+# Infrastructure
+/terraform/ @xops/infra-team
+/manifests/ @xops/sre-team
+
+# CI/CD
+/.github/ @xops/platform-team
+
+# Security-sensitive files
+/SECURITY.md @xops/security-team

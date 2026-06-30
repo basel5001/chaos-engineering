@@ -1,0 +1,26 @@
+services:
+  chaos-runner:
+    build: .
+    container_name: chaos-runner
+    environment:
+      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - BEDROCK_MODEL_ID=${BEDROCK_MODEL_ID:-anthropic.claude-3-sonnet-20240229-v1:0}
+      - KUBECONFIG=/root/.kube/config
+    volumes:
+      - ${HOME}/.kube:/root/.kube:ro
+      - ./manifests:/app/manifests:ro
+      - ./reports:/app/reports
+    command: ["--manifest", "/app/manifests/experiment-pod-kill.yml", "--dry-run", "--analyze"]
+
+  dashboard:
+    image: nginx:alpine
+    container_name: chaos-dashboard
+    ports:
+      - "8080:80"
+    volumes:
+      - ./src/dashboard:/usr/share/nginx/html:ro
+      - ./reports:/usr/share/nginx/html/reports:ro
+    depends_on:
+      - chaos-runner
