@@ -1,5 +1,11 @@
 # Chaos Engineering Toolkit
 
+![CI](https://github.com/basel5001/chaos-engineering/actions/workflows/ci.yml/badge.svg)
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+![Kubernetes](https://img.shields.io/badge/Kubernetes-326CE5?style=flat-square&logo=kubernetes&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3776AB?style=flat-square&logo=python&logoColor=white)
+![AWS Bedrock](https://img.shields.io/badge/AWS_Bedrock-FF9900?style=flat-square&logo=amazonaws&logoColor=white)
+
 Kubernetes chaos engineering toolkit with AI-powered analysis via AWS Bedrock.
 
 ## Architecture
