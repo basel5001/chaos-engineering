@@ -145,6 +145,25 @@ docker compose up
 - DNS and network experiments auto-rollback after `duration_seconds`
 - RBAC limits the runner to only required K8s operations
 - Pod disruption budgets (PDBs) are respected by pod-kill
+- **vCluster isolation** — Run experiments in disposable virtual clusters (see below)
+
+## vCluster: Isolated Chaos Environments
+
+Use [vCluster](https://www.vcluster.com/) to run chaos experiments in fully isolated virtual Kubernetes clusters:
+
+```bash
+# Create an isolated environment
+./vcluster/setup.sh chaos-lab
+
+# Run experiments safely
+export KUBECONFIG=./kubeconfig-chaos-lab.yaml
+chaos --manifest manifests/experiment-pod-kill.yml
+
+# Tear down when done
+./vcluster/teardown.sh chaos-lab
+```
+
+Benefits: complete isolation from production, seconds to provision, zero blast radius to host cluster. See [`vcluster/README.md`](vcluster/README.md) for details.
 
 ## License
 

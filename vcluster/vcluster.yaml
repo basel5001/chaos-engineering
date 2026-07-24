@@ -1,0 +1,21 @@
+sync:
+  fromHost:
+    nodes:
+      enabled: true
+networking:
+  advanced:
+    fallbackHostCluster: true
+controlPlane:
+  distro:
+    k3s:
+      enabled: true
+  statefulSet:
+    resources:
+      limits:
+        cpu: "1"
+        memory: 2Gi
+      requests:
+        cpu: 200m
+        memory: 256Mi
+exportKubeconfig:
+  context: chaos-vcluster
